@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>孫子兵法1-3填字大挑戰 - 雲端自動同步版</title>
+    <title>孫子兵法1-3填字大挑戰 - 雲端自動同步版 (20秒測試版)</title>
     <style>
         :root {
             --bg-color: #FFFF00;
@@ -142,6 +142,263 @@
             <input type="text" id="code-in" placeholder="通關代碼">
             <button id="start-btn">開始挑戰</button>
         </div>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        <div id="question-area"></div>
+        <div id="input-zone">
+            <div id="mark-x" class="feedback" style="color:red"></div>
+            <input type="text" id="answer-input" maxlength="1" autocomplete="off" placeholder="填">
+            <div id="mark-v" class="feedback" style="color:green"></div>
+        </div>
+        <div id="footer-zone">
+            <div id="timer-disp">剩餘時間：20</div> <div id="score-disp">答對題數：0</div>
+        </div>
+    </div>
+
+    <div id="end-screen" class="hidden">
+        <div style="font-size: 24px; font-weight: bold;">挑戰結束！您的答對題數</div>
+        <div class="final-score-text" id="final-score">0</div>
+        <div id="final-info" style="font-size: 18px; line-height: 1.6;"></div>
+        <div id="final-time" style="font-size: 16px; margin-top: 20px; color: #555;"></div>
+        <div id="status-msg">正在自動同步成績至雲端...</div>
+        <button onclick="location.reload()" style="margin-top:20px; padding:12px 25px; font-size:16px; cursor:pointer;">再次挑戰</button>
+    </div>
+
+    <script>
+        // --- 修正後的 Google 表單整合設定（已改為你的專屬表單與 ID） ---
+        const formURL = "https://docs.google.com/forms/d/e/1FAIpQLScgoVpmoVobiWz9eygZAg0oQBQXF3HfA0SX02E4nmyOLMYmvg/formResponse";
+        
+        const entryIDs = {
+            class: "entry.1995683171",  // 班級 (欄位 A)
+            id:    "entry.1170977162",  // 學號 (欄位 B)
+            name:  "entry.1156573871",  // 姓名 (欄位 C)
+            code:  "entry.1673307748",  // 通關代碼 (欄位 D)
+            score: "entry.88232346",    // 成績 (欄位 E)
+            start: "entry.1091534468",  // 開始時間 (欄位 F)
+            end:   "entry.1976646683"   // 結束時間 (欄位 G)
+        };
+
+        const sentences = [
+            "孫子曰：兵者，國之大事也。", "死生之地，存亡之道，不可不察也。", "經之以五事，校之以計，而索其情。",
+            "一曰道，二曰天，三曰地，", "四曰將，五曰法。", "道者，令民與上同意也。",
+            "可與之死，可與之生，而不畏危也。", "天者，陰陽、寒暑、時制也。", "地者，高下、遠近、險易、廣狹、死生也。",
+            "將者，智、信、仁、勇、嚴也。", "法者，曲制、官道、主用也。", "凡此五者，將莫不聞，知之者勝，不知者不勝。",
+            "主孰有道？", "將孰有能？", "天地孰得？", "法令孰行？", "兵眾孰強？",
+            "士卒孰練？", "賞罰孰明？", "吾以此知勝負矣。", "將聽吾計，用之必勝，留之。", "將不聽吾計，用之必敗，去之。",
+            "計利以聽，乃為之勢，以佐其外。", "勢者，因利而制權也。", "兵者，詭道也。", "能而示之不能。",
+            "用而示之不用。", "近而示之遠。", "遠而示之近。", "利而誘之。", "亂而取之。", "實而備之。",
+            "強而避之。", "怒而撓之。", "卑而驕之。", "佚而勞之。", "親而離之。", "攻其無備，出其不意。",
+            "此兵家之勝，不可先傳也。", "未戰而廟算勝者，得算多也。", "未戰而廟算不勝者，得算少也。",
+            "多算勝，少算不勝，而況於無算乎。", "吾以此觀之，勝負見矣。",            
+            "其用戰也勝，久則鈍兵挫銳。", "攻城則力屈，久暴師則國用不足。", "鈍兵挫銳，屈力殫貨，則諸侯乘其弊而起。",
+            "雖有智者，不能善其後矣。", "兵聞拙速，未睹巧之久也。", "兵久而國利者，未之有也。",
+            "不盡知用兵之害者，則不能盡知用兵之利也。", "善用兵者，役不再籍，糧不三載。", "取用於國，因糧於敵，故軍食可足也。",
+            "殺敵者，怒也。", "取敵之利者，貨也。", "車戰，得車十乘已上，賞其先得者。",
+            "更其旌旗，車雜而乘之，卒善而養之。", "兵貴勝，不貴久。", "知兵之將，生民之司命，國家安危之主也。",
+            "百戰百勝，非善之善者也。", "不戰而屈人之兵，善之善者也。", "上兵伐謀，其次伐交，其次伐兵，其下攻城。",
+            "善用兵者，屈人之兵而非戰也。", "拔人之城而非攻也。", "毀人之國而非久也。", "必以全爭於天下。",
+            "兵不頓而利可全，此謀攻之法也。", "用兵之法，十則圍之，五則攻之。", "倍則戰之，敵則能分之。",
+            "少則能守之，不若則能避之。", "小敵之堅，大敵之擒也。", "知可以戰與不可以戰者勝。",
+            "識眾寡之用者勝。", "上下同欲者勝。", "以虞待不虞者勝。", "將能而君不御者勝。",
+            "知彼知己，百戰不殆。", "不知彼而知己，一勝一負。", "不知彼不知己，每戰必殆。"
+        ];
+
+        const filter = ["曰","者","之","也","而","其","孰","矣","，","、","：","。","？"];
+        let score = 0, timeLeft = 20, activeQs = []; // 這裡已修改為 20 秒
+        let selectedId = null, gameTimer, spawnTimer;
+        let isProcessing = false, isComposing = false;
+        let startTime = null;
+
+        document.getElementById('start-btn').addEventListener('click', function() {
+            if (['class-in', 'name-in', 'id-in', 'code-in'].some(id => !document.getElementById(id).value)) {
+                alert("請填寫所有欄位");
+                return;
+            }
+            startGame();
+        });
+
+        function startGame() {
+            startTime = new Date();
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            activeQs = []; score = 0; timeLeft = 20; // 這裡已修改為 20 秒
+            spawn();
+            
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer-disp').innerText = `剩餘時間：${timeLeft}`;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+
+            spawnTimer = setInterval(() => {
+                if (activeQs.length > 0) {
+                    activeQs[0].timer++; 
+                    if (activeQs[0].timer >= 7) spawn();
+                }
+            }, 1000);
+        }
+
+        function spawn() {
+            let pool = sentences.filter(s => !activeQs.some(q => q.text === s));
+            if (pool.length === 0) pool = sentences;
+            let str = pool[Math.floor(Math.random() * pool.length)];
+            let chars = [];
+            for(let i=0; i<str.length; i++) if(!filter.includes(str[i])) chars.push(i);
+            let targetIdx = chars[Math.floor(Math.random() * chars.length)];
+            
+            const newQ = { id: Date.now(), text: str, ans: str[targetIdx], pos: targetIdx, timer: 0 };
+            activeQs.unshift(newQ);
+            if (selectedId === null) selectedId = newQ.id;
+            
+            if (activeQs.length > 5) {
+                activeQs.pop();
+                score -= 1;
+                triggerFlash('flash-red');
+                showTextAnim("-1", "red", "footer-zone");
+            }
+            render();
+        }
+
+        function render() {
+            const area = document.getElementById('question-area');
+            area.innerHTML = '';
+            activeQs.forEach((q) => {
+                const row = document.createElement('div');
+                row.className = 'question-row';
+                row.id = "row-" + q.id;
+                let parts = q.text.split('');
+                let isSelected = (q.id === selectedId);
+                parts[q.pos] = `<span class="q-box ${isSelected ? 'selected' : ''}" onclick="selectQ(${q.id})">?</span>`;
+                row.innerHTML = parts.join('');
+                area.appendChild(row);
+            });
+            document.getElementById('score-disp').innerText = `答對題數：${score}`;
+        }
+
+        function selectQ(id) {
+            selectedId = id;
+            render();
+            document.getElementById('answer-input').focus();
+        }
+
+        const inputEl = document.getElementById('answer-input');
+        inputEl.addEventListener('compositionstart', () => { isComposing = true; });
+        inputEl.addEventListener('compositionend', (e) => {
+            isComposing = false;
+            checkAnswer(e.data);
+        });
+        inputEl.addEventListener('input', (e) => {
+            if (isComposing) return;
+            if (e.target.value) checkAnswer(e.target.value);
+        });
+
+        function checkAnswer(val) {
+            if (!val || !selectedId || isProcessing) return;
+            isProcessing = true;
+            
+            const idx = activeQs.findIndex(q => q.id === selectedId);
+            const q = activeQs[idx];
+
+            if (q && val === q.ans) {
+                const pts = Math.max(1, 5 - idx); 
+                score += pts;
+                triggerFlash('flash-green');
+                showTextAnim("+" + pts, "blue", "row-" + q.id);
+                document.getElementById('mark-v').innerText = "Ｖ";
+                activeQs.splice(idx, 1);
+                selectedId = null; 
+                setTimeout(() => { 
+                    document.getElementById('mark-v').innerText = ""; 
+                    if (activeQs.length === 0) spawn();
+                    render(); 
+                    isProcessing = false;
+                }, 400);
+            } else {
+                document.getElementById('mark-x').innerText = "Ｘ";
+                triggerFlash('flash-red');
+                setTimeout(() => { 
+                    document.getElementById('mark-x').innerText = ""; 
+                    isProcessing = false;
+                }, 400);
+            }
+            inputEl.value = '';
+        }
+
+        function triggerFlash(cls) {
+            document.body.classList.add(cls);
+            setTimeout(() => document.body.classList.remove(cls), 200);
+        }
+
+        function showTextAnim(txt, color, parentId) {
+            const anim = document.createElement('div');
+            anim.className = 'pop-anim';
+            anim.innerText = txt;
+            anim.style.color = color;
+            const parent = document.getElementById(parentId) || document.getElementById('footer-zone');
+            parent.appendChild(anim);
+            setTimeout(() => anim.remove(), 800);
+        }
+
+        function formatTime(date) {
+            return date.getHours().toString().padStart(2, '0') + ":" + 
+                   date.getMinutes().toString().padStart(2, '0') + ":" + 
+                   date.getSeconds().toString().padStart(2, '0');
+        }
+
+        function endGame() {
+            const endTime = new Date();
+            clearInterval(gameTimer); clearInterval(spawnTimer);
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('end-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = score;
+
+            const classVal = document.getElementById('class-in').value;
+            const nameVal = document.getElementById('name-in').value;
+            const idVal = document.getElementById('id-in').value;
+            const codeVal = document.getElementById('code-in').value;
+            const startT = formatTime(startTime);
+            const endT = formatTime(endTime);
+
+            document.getElementById('final-info').innerHTML = `
+                班級：${classVal} | 姓名：${nameVal}<br>
+                學號：${idVal} | 代碼：${codeVal}
+            `;
+            document.getElementById('final-time').innerHTML = `
+                測驗日期：${endTime.toLocaleDateString()}<br>
+                開始時間：${startT} | 結束時間：${endT}
+            `;
+
+            uploadToGoogleForm(classVal, idVal, nameVal, codeVal, score, startT, endT);
+        }
+
+        function uploadToGoogleForm(cls, id, name, code, sc, st, et) {
+            const formData = new URLSearchParams();
+            formData.append(entryIDs.class, cls);
+            formData.append(entryIDs.id, id);
+            formData.append(entryIDs.name, name);
+            formData.append(entryIDs.code, code);
+            formData.append(entryIDs.score, sc);
+            formData.append(entryIDs.start, st);
+            formData.append(entryIDs.end, et);
+
+            fetch(formURL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: formData
+            })
+            .then(() => {
+                document.getElementById('status-msg').innerText = "✅ 成績已成功同步至雲端硬碟";
+                document.getElementById('status-msg').style.color = "green";
+            })
+            .catch(err => {
+                document.getElementById('status-msg').innerText = "❌ 同步失敗，請檢查網路後截圖成績";
+                document.getElementById('status-msg').style.color = "red";
+            });
+        }
+    </script>
+</body>
+</html>
     </div>
 
     <div id="game-screen" class="hidden">
